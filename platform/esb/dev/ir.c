@@ -73,7 +73,9 @@ Contributors: Thomas Pietsch, Bjoern Lichtblau
  ** \endcode
  **/
 
-#include "contiki.h"
+#include <io.h>
+#include <signal.h>
+
 #include "dev/ir.h"
 
 #include "dev/leds.h"

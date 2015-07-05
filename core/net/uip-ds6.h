@@ -43,7 +43,6 @@
 #define __UIP_DS6_H__
 
 #include "net/uip.h"
-#include "net/uip-mcast6/uip-mcast6.h"
 #include "sys/stimer.h"
 
 /*--------------------------------------------------*/
@@ -125,13 +124,6 @@
 #endif
 #define UIP_DS6_AADDR_NB UIP_DS6_AADDR_NBS + UIP_DS6_AADDR_NBU
 
-/*--------------------------------------------------*/
-/* Should we use LinkLayer acks in NUD ?*/
-#ifndef UIP_CONF_DS6_LL_NUD
-#define UIP_DS6_LL_NUD 0
-#else
-#define UIP_DS6_LL_NUD UIP_CONF_DS6_LL_NUD
-#endif
 
 /*--------------------------------------------------*/
 /** \brief Possible states for the nbr cache entries */
@@ -180,14 +172,6 @@ typedef struct uip_ds6_nbr {
 #endif                          /*UIP_CONF_QUEUE_PKT */
 } uip_ds6_nbr_t;
 
-/** \brief An entry in the multicast routing table */
-typedef struct uip_ds6_mcastrt {
-  uint8_t isused;
-  uip_ipaddr_t group;
-  uint32_t lifetime; /* seconds */
-  void * dag; /* Pointer to an rpl_dag_t struct */
-} uip_ds6_mcastrt_t;
-
 /** \brief An entry in the default router list */
 typedef struct uip_ds6_defrt {
   uint8_t isused;
@@ -225,10 +209,8 @@ typedef struct uip_ds6_addr {
   uint8_t type;
   uint8_t isinfinite;
   struct stimer vlifetime;
-#if UIP_ND6_DEF_MAXDADNS > 0
   struct timer dadtimer;
   uint8_t dadnscount;
-#endif /* UIP_ND6_DEF_MAXDADNS > 0 */
 } uip_ds6_addr_t;
 
 /** \brief Anycast address  */
@@ -328,7 +310,6 @@ uip_ds6_nbr_t *uip_ds6_nbr_add(uip_ipaddr_t *ipaddr, uip_lladdr_t *lladdr,
                                uint8_t isrouter, uint8_t state);
 void uip_ds6_nbr_rm(uip_ds6_nbr_t *nbr);
 uip_ds6_nbr_t *uip_ds6_nbr_lookup(uip_ipaddr_t *ipaddr);
-uip_ds6_nbr_t *uip_ds6_nbr_ll_lookup(uip_lladdr_t *lladdr);
 
 /** @} */
 
@@ -398,26 +379,17 @@ void uip_ds6_route_rm_by_nexthop(uip_ipaddr_t *nexthop);
 
 /** @} */
 
-/** \name Multicast Routing Table Manipulation */
-/** @{ */
-uip_ds6_mcastrt_t *uip_ds6_mcast_route_lookup(uip_ipaddr_t *group);
-uip_ds6_mcastrt_t *uip_ds6_mcast_route_add(uip_ipaddr_t *group);
-#define uip_ds6_mcast_route_rm(group) do { (group)->isused = 0; } while(0)
-/** @} */
-
 /** \brief set the last 64 bits of an IP address based on the MAC address */
 void uip_ds6_set_addr_iid(uip_ipaddr_t * ipaddr, uip_lladdr_t * lladdr);
 
 /** \brief Get the number of matching bits of two addresses */
 uint8_t get_match_length(uip_ipaddr_t * src, uip_ipaddr_t * dst);
 
-#if UIP_ND6_DEF_MAXDADNS >0
 /** \brief Perform Duplicate Address Selection on one address */
 void uip_ds6_dad(uip_ds6_addr_t * ifaddr);
 
 /** \brief Callback when DAD failed */
 int uip_ds6_dad_failed(uip_ds6_addr_t * ifaddr);
-#endif /* UIP_ND6_DEF_MAXDADNS */
 
 /** \brief Source address selection, see RFC 3484 */
 void uip_ds6_select_src(uip_ipaddr_t * src, uip_ipaddr_t * dst);

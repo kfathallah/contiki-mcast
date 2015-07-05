@@ -40,7 +40,6 @@
  * \author Joakim Eriksson <joakime@sics.se>, Nicolas Tsiftes <nvt@sics.se>
  * Contributors: Niclas Finne <nfi@sics.se>, Joel Hoglund <joel@sics.se>,
  *               Mathieu Pouillot <m.pouillot@watteco.com>
- *               George Oikonomou <oikonomou@users.sourceforge.net> (multicast)
  */
 
 #include "net/tcpip.h"
@@ -73,44 +72,25 @@ static void dio_input(void);
 static void dao_input(void);
 static void dao_ack_input(void);
 
-/* some debug callbacks useful when debugging RPL networks */
-#ifdef RPL_DEBUG_DIO_INPUT
-void RPL_DEBUG_DIO_INPUT(uip_ipaddr_t *, rpl_dio_t *);
-#endif
-
-#ifdef RPL_DEBUG_DAO_OUTPUT
-void RPL_DEBUG_DAO_OUTPUT(rpl_parent_t *);
-#endif
-
-static uint8_t dao_sequence = RPL_LOLLIPOP_INIT;
-
-/* some debug callbacks useful when debugging RPL networks */
-#ifdef RPL_DEBUG_DIO_INPUT
-void RPL_DEBUG_DIO_INPUT(uip_ipaddr_t *, rpl_dio_t *);
-#endif
-
-#ifdef RPL_DEBUG_DAO_OUTPUT
-void RPL_DEBUG_DAO_OUTPUT(rpl_parent_t *);
-#endif
-
-#if UIP_IPV6_MULTICAST_RPL
-static uip_ds6_mcastrt_t * mcast_group;
-#endif
+static uint8_t dao_sequence;
 /*---------------------------------------------------------------------------*/
-static uip_ipaddr_t *
-get_global_addr()
+static int
+get_global_addr(uip_ipaddr_t *addr)
 {
-  uip_ds6_addr_t * locipaddr;
-  for(locipaddr = uip_ds6_if.addr_list;
-      locipaddr <= &uip_ds6_if.addr_list[UIP_DS6_ADDR_NB - 1]; locipaddr++) {
-    if(locipaddr->isused
-        && (locipaddr->state == ADDR_TENTATIVE
-            || locipaddr->state == ADDR_PREFERRED)
-        && !uip_is_addr_link_local(&locipaddr->ipaddr)) {
-      return &locipaddr->ipaddr;
+  int i;
+  int state;
+
+  for(i = 0; i < UIP_DS6_ADDR_NB; i++) {
+    state = uip_ds6_if.addr_list[i].state;
+    if(uip_ds6_if.addr_list[i].isused &&
+       (state == ADDR_TENTATIVE || state == ADDR_PREFERRED)) {
+      if(!uip_is_addr_link_local(&uip_ds6_if.addr_list[i].ipaddr)) {
+        memcpy(addr, &uip_ds6_if.addr_list[i].ipaddr, sizeof(uip_ipaddr_t));
+        return 1;
+      }
     }
   }
-  return NULL;
+  return 0;
 }
 /*---------------------------------------------------------------------------*/
 static uint32_t
@@ -145,27 +125,21 @@ set16(uint8_t *buffer, int pos, uint16_t value)
 static void
 dis_input(void)
 {
-  rpl_instance_t *instance;
-  rpl_instance_t *end;
+  rpl_dag_t *dag;
 
   /* DAG Information Solicitation */
   PRINTF("RPL: Received a DIS from ");
   PRINT6ADDR(&UIP_IP_BUF->srcipaddr);
   PRINTF("\n");
 
-  for(instance = &instance_table[0], end = instance + RPL_MAX_INSTANCES; instance < end; ++instance) {
-    if(instance->used == 1 ) {
-#if RPL_LEAF_ONLY
-      if(!uip_is_addr_mcast(&UIP_IP_BUF->destipaddr)) {
-#else /* !RPL_LEAF_ONLY */
-      if(uip_is_addr_mcast(&UIP_IP_BUF->destipaddr)) {
-        PRINTF("RPL: Multicast DIS => reset DIO timer\n");
-        rpl_reset_dio_timer(instance, 0);
-      } else {
-#endif /* !RPL_LEAF_ONLY */
-        PRINTF("RPL: Unicast DIS, reply to sender\n");
-        dio_output(instance, &UIP_IP_BUF->srcipaddr);
-      }
+  dag = rpl_get_dag(RPL_ANY_INSTANCE);
+  if(dag != NULL) {
+    if(uip_is_addr_mcast(&UIP_IP_BUF->destipaddr)) {
+      PRINTF("RPL: Multicast DIS => reset DIO timer\n");
+      rpl_reset_dio_timer(dag, 0);
+    } else {
+      PRINTF("RPL: Unicast DIS, reply to sender\n");
+      dio_output(dag, &UIP_IP_BUF->srcipaddr);
     }
   }
 }
@@ -240,7 +214,7 @@ dio_input(void)
   buffer_length = uip_len - uip_l2_l3_icmp_hdr_len;
 
 #if RPL_CONF_ADJUST_LLH_LEN
-  buffer_length += UIP_LLH_LEN; /* Add jackdaw, minimal-net ethernet header */
+  buffer_length+=UIP_LLH_LEN; //Add jackdaw, minimal-net ethernet header
 #endif
 
   /* Process the DIO base option. */
@@ -252,7 +226,6 @@ dio_input(void)
   dio.rank = get16(buffer, i);
   i += 2;
 
-  PRINTF("RPL: Incoming DIO InstanceID-Version %u-%u\n", (unsigned)dio.instance_id,(unsigned)dio.version);
   PRINTF("RPL: Incoming DIO rank %u\n", (unsigned)dio.rank);
 
   dio.grounded = buffer[i] & RPL_DIO_GROUNDED;
@@ -265,10 +238,6 @@ dio_input(void)
 
   memcpy(&dio.dag_id, buffer + i, sizeof(dio.dag_id));
   i += sizeof(dio.dag_id);
-
-  PRINTF("RPL: Incoming DIO DODAG ");
-  PRINT6ADDR(&dio.dag_id);
-  PRINTF(", preference: %u\n", dio.preference);
 
   /* Check if there are any DIO suboptions. */
   for(; i < buffer_length; i += len) {
@@ -295,6 +264,7 @@ dio_input(void)
 	RPL_STAT(rpl_stats.malformed_msgs++);
         return;
       }
+
       dio.mc.type = buffer[i + 2];
       dio.mc.flags = buffer[i + 3] << 1;
       dio.mc.flags |= buffer[i + 4] >> 7;
@@ -387,43 +357,23 @@ dio_input(void)
     }
   }
 
-#ifdef RPL_DEBUG_DIO_INPUT
-  RPL_DEBUG_DIO_INPUT(&from, &dio);
-#endif
-
   rpl_process_dio(&from, &dio);
 }
 /*---------------------------------------------------------------------------*/
 void
-dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr)
+dio_output(rpl_dag_t *dag, uip_ipaddr_t *uc_addr)
 {
   unsigned char *buffer;
   int pos;
-#if !RPL_LEAF_ONLY
   uip_ipaddr_t addr;
-#endif /* !RPL_LEAF_ONLY */
-
-#if RPL_LEAF_ONLY
-  /* only respond to unicast DIS */
-  if(uc_addr == NULL) {
-    return;
-  }
-#endif /* RPL_LEAF_ONLY */
-
-  rpl_dag_t *dag = instance->current_dag;
 
   /* DAG Information Object */
   pos = 0;
 
   buffer = UIP_ICMP_PAYLOAD;
-  buffer[pos++] = instance->instance_id;
+  buffer[pos++] = dag->instance_id;
   buffer[pos++] = dag->version;
-
-#if RPL_LEAF_ONLY
-  set16(buffer, pos, INFINITE_RANK);
-#else /* RPL_LEAF_ONLY */
   set16(buffer, pos, dag->rank);
-#endif /* RPL_LEAF_ONLY */
   pos += 2;
 
   buffer[pos] = 0;
@@ -431,15 +381,8 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr)
     buffer[pos] |= RPL_DIO_GROUNDED;
   }
 
-  buffer[pos] |= instance->mop << RPL_DIO_MOP_SHIFT;
-  buffer[pos] |= dag->preference & RPL_DIO_PREFERENCE_MASK;
-  pos++;
-
-  buffer[pos++] = instance->dtsn_out;
-
-  if(RPL_LOLLIPOP_IS_INIT(instance->dtsn_out)) {
-    RPL_LOLLIPOP_INCREMENT(instance->dtsn_out);
-  }
+  buffer[pos++] = dag->mop << RPL_DIO_MOP_SHIFT;
+  buffer[pos++] = ++dag->dtsn_out;
 
   /* reserved 2 bytes */
   buffer[pos++] = 0; /* flags */
@@ -448,49 +391,48 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr)
   memcpy(buffer + pos, &dag->dag_id, sizeof(dag->dag_id));
   pos += 16;
 
-#if !RPL_LEAF_ONLY
-  if(instance->mc.type != RPL_DAG_MC_NONE) {
-    instance->of->update_metric_container(instance);
+  if(dag->mc.type != RPL_DAG_MC_NONE) {
+    dag->of->update_metric_container(dag);
 
     buffer[pos++] = RPL_OPTION_DAG_METRIC_CONTAINER;
     buffer[pos++] = 6;
-    buffer[pos++] = instance->mc.type;
-    buffer[pos++] = instance->mc.flags >> 1;
-    buffer[pos] = (instance->mc.flags & 1) << 7;
-    buffer[pos++] |= (instance->mc.aggr << 4) | instance->mc.prec;
-    if(instance->mc.type == RPL_DAG_MC_ETX) {
+    buffer[pos++] = dag->mc.type;
+    buffer[pos++] = dag->mc.flags >> 1;
+    buffer[pos] = (dag->mc.flags & 1) << 7;
+    buffer[pos++] |= (dag->mc.aggr << 4) | dag->mc.prec;
+
+    if(dag->mc.type == RPL_DAG_MC_ETX) {
       buffer[pos++] = 2;
-      set16(buffer, pos, instance->mc.obj.etx);
+      set16(buffer, pos, dag->mc.obj.etx);
       pos += 2;
-    } else if(instance->mc.type == RPL_DAG_MC_ENERGY) {
+    } else if(dag->mc.type == RPL_DAG_MC_ENERGY) {
       buffer[pos++] = 2;
-      buffer[pos++] = instance->mc.obj.energy.flags;
-      buffer[pos++] = instance->mc.obj.energy.energy_est;
+      buffer[pos++] = dag->mc.obj.energy.flags;
+      buffer[pos++] = dag->mc.obj.energy.energy_est;
     } else {
       PRINTF("RPL: Unable to send DIO because of unhandled DAG MC type %u\n",
-	(unsigned)instance->mc.type);
+	(unsigned)dag->mc.type);
       return;
     }
   }
-#endif /* !RPL_LEAF_ONLY */
 
   /* Always add a DAG configuration option. */
   buffer[pos++] = RPL_OPTION_DAG_CONF;
   buffer[pos++] = 14;
   buffer[pos++] = 0; /* No Auth, PCS = 0 */
-  buffer[pos++] = instance->dio_intdoubl;
-  buffer[pos++] = instance->dio_intmin;
-  buffer[pos++] = instance->dio_redundancy;
-  set16(buffer, pos, instance->max_rankinc);
+  buffer[pos++] = dag->dio_intdoubl;
+  buffer[pos++] = dag->dio_intmin;
+  buffer[pos++] = dag->dio_redundancy;
+  set16(buffer, pos, dag->max_rankinc);
   pos += 2;
-  set16(buffer, pos, instance->min_hoprankinc);
+  set16(buffer, pos, dag->min_hoprankinc);
   pos += 2;
   /* OCP is in the DAG_CONF option */
-  set16(buffer, pos, instance->of->ocp);
+  set16(buffer, pos, dag->of->ocp);
   pos += 2;
   buffer[pos++] = 0; /* reserved */
-  buffer[pos++] = instance->default_lifetime;
-  set16(buffer, pos, instance->lifetime_unit);
+  buffer[pos++] = dag->default_lifetime;
+  set16(buffer, pos, dag->lifetime_unit);
   pos += 2;
 
   /* Check if we have a prefix to send also. */
@@ -515,27 +457,19 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr)
            dag->prefix_info.length);
   }
 
-#if RPL_LEAF_ONLY
-  PRINTF("RPL: Sending unicast-DIO with rank %u to ",
-      (unsigned)dag->rank);
-  PRINT6ADDR(uc_addr);
-  PRINTF("\n");
-  uip_icmp6_send(uc_addr, ICMP6_RPL, RPL_CODE_DIO, pos);
-#else /* RPL_LEAF_ONLY */
   /* Unicast requests get unicast replies! */
   if(uc_addr == NULL) {
     PRINTF("RPL: Sending a multicast-DIO with rank %u\n",
-        (unsigned)instance->current_dag->rank);
+        (unsigned)dag->rank);
     uip_create_linklocal_rplnodes_mcast(&addr);
     uip_icmp6_send(&addr, ICMP6_RPL, RPL_CODE_DIO, pos);
   } else {
     PRINTF("RPL: Sending unicast-DIO with rank %u to ",
-        (unsigned)instance->current_dag->rank);
+        (unsigned)dag->rank);
     PRINT6ADDR(uc_addr);
     PRINTF("\n");
     uip_icmp6_send(uc_addr, ICMP6_RPL, RPL_CODE_DIO, pos);
   }
-#endif /* RPL_LEAF_ONLY */
 }
 /*---------------------------------------------------------------------------*/
 static void
@@ -543,11 +477,10 @@ dao_input(void)
 {
   uip_ipaddr_t dao_sender_addr;
   rpl_dag_t *dag;
-  rpl_instance_t *instance;
   unsigned char *buffer;
   uint16_t sequence;
   uint8_t instance_id;
-  uint8_t lifetime;
+  rpl_lifetime_t lifetime;
   uint8_t prefixlen;
   uint8_t flags;
   uint8_t subopt_type;
@@ -573,54 +506,32 @@ dao_input(void)
 
   buffer = UIP_ICMP_PAYLOAD;
   buffer_length = uip_len - uip_l2_l3_icmp_hdr_len;
-
 #if RPL_CONF_ADJUST_LLH_LEN
   buffer_length += UIP_LLH_LEN; /* Add jackdaw, minimal-net ethernet header */
 #endif
+
   pos = 0;
   instance_id = buffer[pos++];
 
-  instance = rpl_get_instance(instance_id);
-  if(instance == NULL) {
-    PRINTF("RPL: Ignoring a DAO for an unknown RPL instance(%u)\n",
+  dag = rpl_get_dag(instance_id);
+  if(dag == NULL) {
+    PRINTF("RPL: Ignoring a DAO for a different RPL instance (%u)\n",
            instance_id);
     return;
   }
 
-  lifetime = instance->default_lifetime;
+  lifetime = dag->default_lifetime;
 
   flags = buffer[pos++];
   /* reserved */
   pos++;
   sequence = buffer[pos++];
 
-  dag = instance->current_dag;
   /* Is the DAGID present? */
   if(flags & RPL_DAO_D_FLAG) {
-    if(memcmp(&dag->dag_id, &buffer[pos], sizeof(dag->dag_id))) {
-      PRINTF("RPL: Ignoring a DAO for a DODAG different from ours\n");
-      return;
-    }
+    /* Currently the DAG ID is ignored since we only use global
+       RPL Instance IDs. */
     pos += 16;
-  } else {
-    /* Perhaps, there are verification to do but ... */
-  }
-
-  learned_from = uip_is_addr_mcast(&dao_sender_addr) ?
-                 RPL_ROUTE_FROM_MULTICAST_DAO : RPL_ROUTE_FROM_UNICAST_DAO;
-
-  if(learned_from == RPL_ROUTE_FROM_UNICAST_DAO) {
-    /* Check whether this is a DAO forwarding loop. */
-    p = rpl_find_parent(dag, &dao_sender_addr);
-    /* check if this is a new DAO registration with an "illegal" rank */
-    /* if we already route to this node it is likely */
-    if(p != NULL && DAG_RANK(p->rank, instance) < DAG_RANK(dag->rank, instance)) {
-      PRINTF("RPL: Loop detected when receiving a unicast DAO from a node with a lower rank! (%u < %u)\n",
-          DAG_RANK(p->rank, instance), DAG_RANK(dag->rank, instance));
-      p->rank = INFINITE_RANK;
-      p->updated = 1;
-      return;
-    }
   }
 
   /* Check if there are any RPL options present. */
@@ -636,7 +547,7 @@ dao_input(void)
 
     switch(subopt_type) {
     case RPL_OPTION_TARGET:
-      /* Handle the target option. */
+      /* handle the target option */
       prefixlen = buffer[i + 3];
       memset(&prefix, 0, sizeof(prefix));
       memcpy(&prefix, buffer + i + 4, (prefixlen + 7) / CHAR_BIT);
@@ -652,25 +563,15 @@ dao_input(void)
   }
 
   PRINTF("RPL: DAO lifetime: %u, prefix length: %u prefix: ",
-          (unsigned)lifetime, (unsigned)prefixlen);
+         (unsigned)lifetime, (unsigned)prefixlen);
   PRINT6ADDR(&prefix);
   PRINTF("\n");
 
-#if UIP_IPV6_MULTICAST_RPL
-  if(uip_is_addr_mcast_global(&prefix)) {
-    mcast_group = uip_ds6_mcast_route_add(&prefix);
-    if(mcast_group) {
-      mcast_group->dag = dag;
-      mcast_group->lifetime = RPL_LIFETIME(instance, lifetime);
-    }
-  } else
-#endif
-  {
   rep = uip_ds6_route_lookup(&prefix);
 
   if(lifetime == ZERO_LIFETIME) {
     /* No-Path DAO received; invoke the route purging routine. */
-    if(rep != NULL && rep->state.saved_lifetime == 0 && rep->length == prefixlen) {
+    if(rep != NULL && rep->state.saved_lifetime == 0) {
       PRINTF("RPL: Setting expiration timer for prefix ");
       PRINT6ADDR(&prefix);
       PRINTF("\n");
@@ -680,16 +581,32 @@ dao_input(void)
     return;
   }
 
-  rep = rpl_add_route(dag, &prefix, prefixlen, &dao_sender_addr);
-  if(rep == NULL) {
-    RPL_STAT(rpl_stats.mem_overflows++);
-    PRINTF("RPL: Could not add a route after receiving a DAO\n");
-    return;
+  learned_from = uip_is_addr_mcast(&dao_sender_addr) ?
+                 RPL_ROUTE_FROM_MULTICAST_DAO : RPL_ROUTE_FROM_UNICAST_DAO;
+
+  if(learned_from == RPL_ROUTE_FROM_UNICAST_DAO) {
+    /* Check whether this is a DAO forwarding loop. */
+    p = rpl_find_parent(dag, &dao_sender_addr);
+    if(p != NULL && DAG_RANK(p->rank, dag) < DAG_RANK(dag->rank, dag)) {
+      PRINTF("RPL: Loop detected when receiving a unicast DAO from a node with a lower rank! (%u < %u)\n",
+          DAG_RANK(p->rank, dag), DAG_RANK(dag->rank, dag));
+      p->rank = INFINITE_RANK;
+      p->updated = 1;
+      return;
+    }
   }
 
-  rep->state.lifetime = RPL_LIFETIME(instance, lifetime);
-  rep->state.learned_from = learned_from;
+  if(rep == NULL) {
+    rep = rpl_add_route(dag, &prefix, prefixlen, &dao_sender_addr);
+    if(rep == NULL) {
+      RPL_STAT(rpl_stats.mem_overflows++);
+      PRINTF("RPL: Could not add a route after receiving a DAO\n");
+      return;
+    }
   }
+
+  rep->state.lifetime = RPL_LIFETIME(dag, lifetime);
+  rep->state.learned_from = learned_from;
 
   if(learned_from == RPL_ROUTE_FROM_UNICAST_DAO) {
     if(dag->preferred_parent) {
@@ -698,36 +615,30 @@ dao_input(void)
       PRINTF("\n");
       uip_icmp6_send(&dag->preferred_parent->addr,
                      ICMP6_RPL, RPL_CODE_DAO, buffer_length);
-    }
-    if(flags & RPL_DAO_K_FLAG) {
-      dao_ack_output(instance, &dao_sender_addr, sequence);
+    } else if(flags & RPL_DAO_K_FLAG) {
+      dao_ack_output(dag, &dao_sender_addr, sequence);
     }
   }
 }
 /*---------------------------------------------------------------------------*/
 void
-dao_output(rpl_parent_t *n, uint8_t lifetime, uip_ipaddr_t * target)
+dao_output(rpl_parent_t *n, rpl_lifetime_t lifetime)
 {
   rpl_dag_t *dag;
-  rpl_instance_t *instance;
   unsigned char *buffer;
   uint8_t prefixlen;
   uip_ipaddr_t addr;
+  uip_ipaddr_t prefix;
   int pos;
 
   /* Destination Advertisement Object */
-  if(target == NULL) {
-    /* Caller didn't specify a target, try to use our own unicast global */
-    target = get_global_addr();
-  }
-
-  if(target == NULL) {
+  if(get_global_addr(&prefix) == 0) {
     PRINTF("RPL: No global address set for this node - suppressing DAO\n");
     return;
   }
 
   if(n == NULL) {
-    dag = rpl_get_any_dag();
+    dag = rpl_get_dag(RPL_ANY_INSTANCE);
     if(dag == NULL) {
       PRINTF("RPL: Did not join a DAG before sending DAO\n");
       return;
@@ -736,40 +647,27 @@ dao_output(rpl_parent_t *n, uint8_t lifetime, uip_ipaddr_t * target)
     dag = n->dag;
   }
 
-  instance = dag->instance;
-
-#ifdef RPL_DEBUG_DAO_OUTPUT
-  RPL_DEBUG_DAO_OUTPUT(n);
-#endif
-
   buffer = UIP_ICMP_PAYLOAD;
 
-  RPL_LOLLIPOP_INCREMENT(dao_sequence);
+  ++dao_sequence;
   pos = 0;
 
-  buffer[pos++] = instance->instance_id;
-  buffer[pos] = 0;
-#if RPL_DAO_SPECIFY_DODAG
-  buffer[pos] |= RPL_DAO_D_FLAG;
-#endif /* RPL_DAO_SPECIFY_DODAG */
+  buffer[pos++] = dag->instance_id;
 #if RPL_CONF_DAO_ACK
-  buffer[pos] |= RPL_DAO_K_FLAG;
-#endif /* RPL_CONF_DAO_ACK */
-  ++pos;
+  buffer[pos++] = RPL_DAO_K_FLAG; /* DAO ACK request, no DODAGID */
+#else
+  buffer[pos++] = 0; /* No DAO ACK request, no DODAGID */
+#endif
   buffer[pos++] = 0; /* reserved */
-  buffer[pos++] = dao_sequence;
-#if RPL_DAO_SPECIFY_DODAG
-  memcpy(buffer + pos, &dag->dag_id, sizeof(dag->dag_id));
-  pos+=sizeof(dag->dag_id);
-#endif /* RPL_DAO_SPECIFY_DODAG */
+  buffer[pos++] = dao_sequence & 0xff;
 
   /* create target subopt */
-  prefixlen = sizeof(uip_ipaddr_t) * CHAR_BIT;
+  prefixlen = sizeof(prefix) * CHAR_BIT;
   buffer[pos++] = RPL_OPTION_TARGET;
   buffer[pos++] = 2 + ((prefixlen + 7) / CHAR_BIT);
   buffer[pos++] = 0; /* reserved */
   buffer[pos++] = prefixlen;
-  memcpy(buffer + pos, target, (prefixlen + 7) / CHAR_BIT);
+  memcpy(buffer + pos, &prefix, (prefixlen + 7) / CHAR_BIT);
   pos += ((prefixlen + 7) / CHAR_BIT);
 
   /* Create a transit information sub-option. */
@@ -810,6 +708,9 @@ dao_ack_input(void)
 
   buffer = UIP_ICMP_PAYLOAD;
   buffer_length = uip_len - uip_l2_l3_icmp_hdr_len;
+#if RPL_CONF_ADJUST_LLH_LEN
+  buffer_length+=UIP_LLH_LEN; //Add jackdaw, minimal-net ethernet header
+#endif
 
   instance_id = buffer[0];
   sequence = buffer[2];
@@ -822,7 +723,7 @@ dao_ack_input(void)
 }
 /*---------------------------------------------------------------------------*/
 void
-dao_ack_output(rpl_instance_t *instance, uip_ipaddr_t *dest, uint8_t sequence)
+dao_ack_output(rpl_dag_t *dag, uip_ipaddr_t *dest, uint8_t sequence)
 {
   unsigned char *buffer;
 
@@ -832,7 +733,7 @@ dao_ack_output(rpl_instance_t *instance, uip_ipaddr_t *dest, uint8_t sequence)
 
   buffer = UIP_ICMP_PAYLOAD;
 
-  buffer[0] = instance->instance_id;
+  buffer[0] = dag->instance_id;
   buffer[1] = 0;
   buffer[2] = sequence;
   buffer[3] = 0;

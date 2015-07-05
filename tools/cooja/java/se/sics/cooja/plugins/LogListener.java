@@ -69,7 +69,6 @@ import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
-import javax.swing.KeyStroke;
 import javax.swing.RowFilter;
 import javax.swing.SwingUtilities;
 import javax.swing.table.AbstractTableModel;
@@ -295,7 +294,8 @@ public class LogListener extends VisPlugin {
     logTable.addKeyListener(new KeyAdapter() {
       public void keyPressed(KeyEvent e) {
         if (e.getKeyCode() == KeyEvent.VK_SPACE) {
-          showInAllAction.actionPerformed(null);
+          timeLineAction.actionPerformed(null);
+          radioLoggerAction.actionPerformed(null);
         }
       }
     });
@@ -349,9 +349,7 @@ public class LogListener extends VisPlugin {
     popupMenu.addSeparator();
     popupMenu.add(new JMenuItem(saveAction));
     popupMenu.addSeparator();
-    JMenu focusMenu = new JMenu("Show in");
-    focusMenu.add(new JMenuItem(showInAllAction));
-    focusMenu.addSeparator();
+    JMenu focusMenu = new JMenu("Focus (Space)");
     focusMenu.add(new JMenuItem(timeLineAction));
     focusMenu.add(new JMenuItem(radioLoggerAction));
     popupMenu.add(focusMenu);
@@ -699,7 +697,7 @@ public class LogListener extends VisPlugin {
     }
   };
 
-  private Action timeLineAction = new AbstractAction("Timeline") {
+  private Action timeLineAction = new AbstractAction("in Timeline ") {
     private static final long serialVersionUID = -6358463434933029699L;
     public void actionPerformed(ActionEvent e) {
       int view = logTable.getSelectedRow();
@@ -722,7 +720,7 @@ public class LogListener extends VisPlugin {
     }
   };
 
-  private Action radioLoggerAction = new AbstractAction("Radio Logger") {
+  private Action radioLoggerAction = new AbstractAction("in Radio Logger") {
     private static final long serialVersionUID = -3041714249257346688L;
     public void actionPerformed(ActionEvent e) {
       int view = logTable.getSelectedRow();
@@ -745,18 +743,7 @@ public class LogListener extends VisPlugin {
     }
   };
 
-  private Action showInAllAction = new AbstractAction("All") {
-    private static final long serialVersionUID = -8433490108577001803L;
-    {
-        putValue(ACCELERATOR_KEY, KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0, true));
-    }
-
-    public void actionPerformed(ActionEvent e) {
-      timeLineAction.actionPerformed(null);
-      radioLoggerAction.actionPerformed(null);
-    }
-  };
-
+  
   private Action clearAction = new AbstractAction("Clear") {
     private static final long serialVersionUID = -2115620313183440224L;
 

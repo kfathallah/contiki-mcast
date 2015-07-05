@@ -6,27 +6,9 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-/*
-  CLOCK_SECOND is the number of ticks per second.
-  It is defined through CONF_CLOCK_SECOND in the contiki-conf.h for each platform.
-  The usual AVR defaults are 128 or 125 ticks per second, counting a prescaled CPU clock
-  using the 8 bit timer0.
-  
-  As clock_time_t is an unsigned 16 bit data type, intervals up to 512 or 524 seconds
-  can be measured with ~8 millisecond precision. 
-  For longer intervals a 32 bit global is incremented every second. 
- 
-  clock-avr.h contains the specific setup code for each mcu.
-
-*/
-
-/* count is a 16 bit tick counter that wraps every ~10 minutes, returned by clock_time() */
 static volatile clock_time_t count;
-/* scount is the 8 bit counter that counts ticks modulo CLOCK_SECONDS */
 static volatile uint8_t scount;
-/* seconds is the number of seconds since startup, returned by clock_seconds() */
 volatile unsigned long seconds;
-/* sleepseconds is the number of seconds sleeping since startup, available globally */
 long sleepseconds;
 
 /* Set RADIOSTATS to monitor radio on time (must also be set in the radio driver) */
@@ -50,7 +32,19 @@ extern volatile uint8_t rf230_calibrate;
 static uint8_t calibrate_interval;
 #endif
 
-#if 0
+/*
+  CLOCK_SECOND is the number of ticks per second.
+  It is defined through CONF_CLOCK_SECOND in the contiki-conf.h for each platform.
+  The usual AVR default is ~125 ticks per second, counting a prescaler the CPU clock
+  using the 8 bit timer0.
+  
+  As clock_time_t is an unsigned 16 bit data type, intervals up to 524 seconds
+  can be measured with 8 millisecond precision. 
+  For longer intervals a 32 bit global is incremented every second. 
+ 
+  clock-avr.h contains the specific setup code for each mcu.
+
+*/
 /*---------------------------------------------------------------------------*/
 /* This routine can be called to add seconds to the clock after a sleep
  * of an integral number of seconds.
@@ -58,38 +52,16 @@ static uint8_t calibrate_interval;
 void clock_adjust_seconds(uint8_t howmany) {
    seconds += howmany;
    sleepseconds +=howmany;
-   count += howmany * CLOCK_SECOND;
 #if RADIOSTATS
   if (RF230_receive_on) radioontime += howmany;
 #endif
-}
-#endif
-
-/*---------------------------------------------------------------------------*/
-/* This routine can be called to add ticks to the clock after a sleep.
- * Leap ticks or seconds can (rarely) be introduced if the ISR is not blocked.
- */
-void clock_adjust_ticks(uint16_t howmany) {
-// uint8_t sreg = SREG;cli();
-   count  += howmany;
-   howmany+= scount;
-   while(howmany >= CLOCK_SECOND) {
-      howmany -= CLOCK_SECOND;
-      seconds++;
-      sleepseconds++;
-#if RADIOSTATS
-      if (RF230_receive_on) radioontime += 1;
-#endif
-   }
-   scount = howmany;
-// SREG=sreg;
 }
 /*---------------------------------------------------------------------------*/
 //SIGNAL(SIG_OUTPUT_COMPARE0)
 ISR(AVR_OUTPUT_COMPARE_INT)
 {
   count++;
-  if(++scount >= CLOCK_SECOND) {
+  if(++scount == CLOCK_SECOND) {
     scount = 0;
     seconds++;
   }
@@ -100,7 +72,7 @@ ISR(AVR_OUTPUT_COMPARE_INT)
 #endif
 #if RADIOSTATS
   if (RF230_receive_on) {
-    if (++rcount >= CLOCK_SECOND) {
+    if (++rcount == CLOCK_SECOND) {
       rcount=0;
       radioontime++;
     }
@@ -151,7 +123,6 @@ clock_time(void)
   } while(tmp != count);
   return tmp;
 }
-#if 0
 /*---------------------------------------------------------------------------*/
 /**
  * Delay the CPU for a multiple of TODO
@@ -168,7 +139,7 @@ clock_delay(unsigned int i)
 
 /*---------------------------------------------------------------------------*/
 /**
- * Wait for a number of clock ticks.
+ * Wait for a multiple of 1 / 125 sec = 0.008 ms.
  *
  */
 void
@@ -183,9 +154,8 @@ clock_wait(int i)
 void
 clock_set_seconds(unsigned long sec)
 {
-    seconds = sec;
+    // TODO
 }
-#endif
 
 unsigned long
 clock_seconds(void)
@@ -196,14 +166,8 @@ clock_seconds(void)
   } while(tmp != seconds);
   return tmp;
 }
-#ifdef HANDLE_UNSUPPORTED_INTERRUPTS
-/* Ignore unsupported interrupts, optionally hang for debugging */
-ISR(BADISR_vect) {
-//static volatile uint8_t x;while (1) x++;
-}
-#endif
+
 #ifdef HANG_ON_UNKNOWN_INTERRUPT
-/* Hang on any unsupported interrupt */
 /* Useful for diagnosing unknown interrupts that reset the mcu.
  * Currently set up for 12mega128rfa1.
  * For other mcus, enable all and then disable the conflicts.

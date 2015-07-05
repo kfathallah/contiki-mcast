@@ -42,7 +42,6 @@ import java.util.Collection;
 
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
-import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 import javax.swing.plaf.basic.BasicInternalFrameUI;
@@ -68,7 +67,7 @@ public class Notes extends VisPlugin {
   public Notes(Simulation simulation, GUI gui) {
     super("Notes", gui);
 
-    add(BorderLayout.CENTER, new JScrollPane(notes));
+    add(BorderLayout.CENTER, notes);
 
     /* Popup menu */
     if (Notes.this.getUI() instanceof BasicInternalFrameUI) {
@@ -103,14 +102,6 @@ public class Notes extends VisPlugin {
     this.setSize(300, 300);
   }
 
-  public String getNotes() {
-    return notes.getText();
-  }
-  
-  public void setNotes(String text) {
-    this.notes.setText(text);
-  }
-  
   private void setDecorationsVisible(boolean visible) {
     if (!(Notes.this.getUI() instanceof BasicInternalFrameUI)) {
       return;

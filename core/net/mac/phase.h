@@ -28,6 +28,7 @@
  *
  * This file is part of the Contiki operating system.
  *
+ * $Id: phase.h,v 1.5 2010/09/13 13:39:05 adamdunkels Exp $
  */
 
 /**
@@ -47,19 +48,10 @@
 #include "lib/memb.h"
 #include "net/netstack.h"
 
-#if PHASE_CONF_DRIFT_CORRECT
-#define PHASE_DRIFT_CORRECT PHASE_CONF_DRIFT_CORRECT
-#else
-#define PHASE_DRIFT_CORRECT 0
-#endif
-
 struct phase {
   struct phase *next;
   rimeaddr_t neighbor;
   rtimer_clock_t time;
-#if PHASE_DRIFT_CORRECT
-  rtimer_clock_t drift;
-#endif
   uint8_t noacks;
   struct timer noacks_timer;
 };
@@ -83,8 +75,7 @@ typedef enum {
 void phase_init(struct phase_list *list);
 phase_status_t phase_wait(struct phase_list *list,  const rimeaddr_t *neighbor,
                           rtimer_clock_t cycle_time, rtimer_clock_t wait_before,
-                          mac_callback_t mac_callback, void *mac_callback_ptr,
-                          struct rdc_buf_list *buf_list);
+                          mac_callback_t mac_callback, void *mac_callback_ptr);
 void phase_update(const struct phase_list *list, const rimeaddr_t *neighbor,
                   rtimer_clock_t time, int mac_status);
 

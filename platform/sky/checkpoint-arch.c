@@ -55,6 +55,9 @@
 #include "dev/button-sensor.h"
 #include "cfs/cfs.h"
 #include "cfs/cfs-coffee.h"
+
+#include <io.h>
+#include <signal.h>
 #include <stdio.h>
 
 #define DEBUG 0

@@ -40,7 +40,7 @@
 
 static void *main_fiber;
 
-#elif defined(__linux)
+#else /* _WIN32 || __CYGWIN__ */
 
 #include <stdlib.h>
 #include <signal.h>
@@ -54,7 +54,7 @@ struct mtarch_t {
 static ucontext_t main_context;
 static ucontext_t *running_context;
 
-#endif /* _WIN32 || __CYGWIN__ || __linux */
+#endif /* _WIN32 || __CYGWIN__ */
 
 #include "mtarch.h"
 
@@ -88,7 +88,7 @@ mtarch_start(struct mtarch_thread *thread,
 
   thread->mt_thread = CreateFiber(0, (LPFIBER_START_ROUTINE)function, data);
 
-#elif defined(__linux)
+#else /* _WIN32 || __CYGWIN__ */
 
   thread->mt_thread = malloc(sizeof(struct mtarch_t));
 
@@ -118,7 +118,7 @@ mtarch_start(struct mtarch_thread *thread,
   makecontext(&((struct mtarch_t *)thread->mt_thread)->context,
 	      (void (*)(void))function, 1, data);
 
-#endif /* _WIN32 || __CYGWIN__ || __linux */
+#endif /* _WIN32 || __CYGWIN__ */
 }
 /*--------------------------------------------------------------------------*/
 void
@@ -128,11 +128,11 @@ mtarch_yield(void)
 
   SwitchToFiber(main_fiber);
 
-#elif defined(__linux)
+#else /* _WIN32 || __CYGWIN__ */
 
   swapcontext(running_context, &main_context);
 
-#endif /* _WIN32 || __CYGWIN__ || __linux */
+#endif /* _WIN32 || __CYGWIN__ */
 }
 /*--------------------------------------------------------------------------*/
 void
@@ -142,13 +142,13 @@ mtarch_exec(struct mtarch_thread *thread)
 
   SwitchToFiber(thread->mt_thread);
 
-#elif defined(__linux)
+#else /* _WIN32 || __CYGWIN__ */
 
   running_context = &((struct mtarch_t *)thread->mt_thread)->context;
   swapcontext(&main_context, running_context);
   running_context = NULL;
 
-#endif /* _WIN32 || __CYGWIN__ || __linux */
+#endif /* _WIN32 || __CYGWIN__ */
 }
 /*--------------------------------------------------------------------------*/
 void
@@ -158,11 +158,11 @@ mtarch_stop(struct mtarch_thread *thread)
 
   DeleteFiber(thread->mt_thread);
 
-#elif defined(linux) || defined(__linux)
+#else /* _WIN32 || __CYGWIN__ */
 
   free(thread->mt_thread);
 
-#endif /* _WIN32 || __CYGWIN__ || __linux */
+#endif /* _WIN32 || __CYGWIN__ */
 }
 /*--------------------------------------------------------------------------*/
 void

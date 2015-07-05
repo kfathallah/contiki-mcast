@@ -34,6 +34,14 @@
  */
 
 #include "contiki-conf.h"
+
+#ifdef __IAR_SYSTEMS_ICC__
+#include <msp430.h>
+#else
+#include <io.h>
+#include <signal.h>
+#endif
+
 #include "dev/slip.h"
 #include "dev/uart0.h"
 /*---------------------------------------------------------------------------*/

@@ -36,6 +36,10 @@
  * \author
  * 	Michael Baar <baar@inf.fu-berlin.de>, Nicolas Tsiftes <nvt@sics.se>
  */
+
+#include <io.h>
+#include <signal.h>
+
 #include <stdio.h>
 #include <string.h>
 

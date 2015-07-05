@@ -71,8 +71,7 @@ collect_common_net_print(void)
 {
   rpl_dag_t *dag;
   int i;
-  /* Let's suppose we have only one instance */
-  dag = rpl_get_any_dag();
+  dag = rpl_get_dag(RPL_ANY_INSTANCE);
   if(dag->preferred_parent != NULL) {
     PRINTF("Preferred parent: ");
     PRINT6ADDR(&dag->preferred_parent->addr);
@@ -129,8 +128,7 @@ collect_common_send(void)
   rimeaddr_copy(&parent, &rimeaddr_null);
   parent_etx = 0;
 
-  /* Let's suppose we have only one instance */
-  dag = rpl_get_any_dag();
+  dag = rpl_get_dag(RPL_DEFAULT_INSTANCE);
   if(dag != NULL) {
     preferred_parent = dag->preferred_parent;
     if(preferred_parent != NULL) {
@@ -144,7 +142,7 @@ collect_common_send(void)
       }
     }
     rtmetric = dag->rank;
-    beacon_interval = (uint16_t) ((2L << dag->instance->dio_intcurrent) / 1000);
+    beacon_interval = (uint16_t) ((2L << dag->dio_intcurrent) / 1000);
     num_neighbors = RPL_PARENT_COUNT(dag);
   } else {
     rtmetric = 0;

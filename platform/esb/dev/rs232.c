@@ -43,7 +43,8 @@
  *
  */
 
-#include "contiki.h"
+#include <io.h>
+#include <signal.h>
 #include <string.h>
 
 #include "contiki-esb.h"

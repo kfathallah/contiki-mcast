@@ -29,6 +29,9 @@
  * @(#)$Id: cc2420-arch.c,v 1.10 2010/12/16 22:49:33 adamdunkels Exp $
  */
 
+#include <io.h>
+#include <signal.h>
+
 #include "contiki.h"
 #include "contiki-net.h"
 
@@ -48,13 +51,7 @@
 #endif
 
 /*---------------------------------------------------------------------------*/
-#ifdef __IAR_SYSTEMS_ICC__
-#pragma vector=CC2420_IRQ_VECTOR
-__interrupt void
-#else
 interrupt(CC2420_IRQ_VECTOR)
-#endif
-
 cc24240_port1_interrupt(void)
 {
   ENERGEST_ON(ENERGEST_TYPE_IRQ);

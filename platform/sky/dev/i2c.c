@@ -41,6 +41,9 @@
  */
 
 #include <stdio.h>
+
+#include <io.h>
+
 #include <contiki.h>
 #include <dev/spi.h>
 #include <dev/leds.h>

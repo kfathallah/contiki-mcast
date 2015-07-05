@@ -52,15 +52,13 @@
 static void reset(rpl_dag_t *);
 static void parent_state_callback(rpl_parent_t *, int, int);
 static rpl_parent_t *best_parent(rpl_parent_t *, rpl_parent_t *);
-static rpl_dag_t *best_dag(rpl_dag_t *, rpl_dag_t *);
 static rpl_rank_t calculate_rank(rpl_parent_t *, rpl_rank_t);
-static void update_metric_container(rpl_instance_t *);
+static void update_metric_container(rpl_dag_t *);
 
 rpl_of_t rpl_of_etx = {
   reset,
   parent_state_callback,
   best_parent,
-  best_dag,
   calculate_rank,
   update_metric_container,
   1
@@ -88,14 +86,14 @@ typedef uint16_t rpl_path_metric_t;
 static rpl_path_metric_t
 calculate_path_metric(rpl_parent_t *p)
 {
-  if(p == NULL || (p->mc.obj.etx == 0 && p->rank > ROOT_RANK(p->dag->instance))) {
+  if(p == NULL || (p->mc.obj.etx == 0 && p->rank > ROOT_RANK(p->dag))) {
     return MAX_PATH_COST * RPL_DAG_MC_ETX_DIVISOR;
   }
   return p->mc.obj.etx + NI_ETX_TO_RPL_ETX(p->link_metric);
 }
 
 static void
-reset(rpl_dag_t *sag)
+reset(rpl_dag_t *dag)
 {
 }
 
@@ -116,7 +114,7 @@ calculate_rank(rpl_parent_t *p, rpl_rank_t base_rank)
     }
     rank_increase = NEIGHBOR_INFO_FIX2ETX(INITIAL_LINK_METRIC) * DEFAULT_MIN_HOPRANKINC;
   } else {
-    rank_increase = NEIGHBOR_INFO_FIX2ETX(p->link_metric) * p->dag->instance->min_hoprankinc;
+    rank_increase = NEIGHBOR_INFO_FIX2ETX(p->link_metric) * p->dag->min_hoprankinc;
     if(base_rank == 0) {
       base_rank = p->rank;
     }
@@ -134,32 +132,6 @@ calculate_rank(rpl_parent_t *p, rpl_rank_t base_rank)
   return new_rank;
 }
 
-static rpl_dag_t *
-best_dag(rpl_dag_t *d1, rpl_dag_t *d2)
-{
-  if(d1->grounded) {
-    if (!d2->grounded) {
-      return d1;
-    }
-  } else if(d2->grounded) {
-    return d2;
-  }
-
-  if(d1->preference < d2->preference) {
-    return d2;
-  } else {
-    if(d1->preference > d2->preference) {
-      return d1;
-    }
-  }
-
-  if(d2->rank < d1->rank) {
-    return d2;
-  } else {
-    return d1;
-  }
-}
-
 static rpl_parent_t *
 best_parent(rpl_parent_t *p1, rpl_parent_t *p2)
 {
@@ -170,7 +142,7 @@ best_parent(rpl_parent_t *p1, rpl_parent_t *p2)
 
   dag = p1->dag; /* Both parents must be in the same DAG. */
 
-  min_diff = RPL_DAG_MC_ETX_DIVISOR /
+  min_diff = RPL_DAG_MC_ETX_DIVISOR / 
              PARENT_SWITCH_THRESHOLD_DIV;
 
   p1_metric = calculate_path_metric(p1);
@@ -192,26 +164,18 @@ best_parent(rpl_parent_t *p1, rpl_parent_t *p2)
 }
 
 static void
-update_metric_container(rpl_instance_t *instance)
+update_metric_container(rpl_dag_t *dag)
 {
   rpl_path_metric_t path_metric;
-  rpl_dag_t *dag;
 #if RPL_DAG_MC == RPL_DAG_MC_ENERGY
   uint8_t type;
 #endif
 
-  instance->mc.flags = RPL_DAG_MC_FLAG_P;
-  instance->mc.aggr = RPL_DAG_MC_AGGR_ADDITIVE;
-  instance->mc.prec = 0;
+  dag->mc.flags = RPL_DAG_MC_FLAG_P;
+  dag->mc.aggr = RPL_DAG_MC_AGGR_ADDITIVE;
+  dag->mc.prec = 0;
 
-  dag = instance->current_dag;
-
-  if (!dag->joined) {
-    /* We should probably do something here */
-    return;
-  }
-
-  if(dag->rank == ROOT_RANK(instance)) {
+  if(dag->rank == ROOT_RANK(dag)) {
     path_metric = 0;
   } else {
     path_metric = calculate_path_metric(dag->preferred_parent);
@@ -219,27 +183,27 @@ update_metric_container(rpl_instance_t *instance)
 
 #if RPL_DAG_MC == RPL_DAG_MC_ETX
 
-  instance->mc.type = RPL_DAG_MC_ETX;
-  instance->mc.length = sizeof(instance->mc.obj.etx);
-  instance->mc.obj.etx = path_metric;
+  dag->mc.type = RPL_DAG_MC_ETX;
+  dag->mc.length = sizeof(dag->mc.obj.etx);
+  dag->mc.obj.etx = path_metric;
 
   PRINTF("RPL: My path ETX to the root is %u.%u\n",
-	instance->mc.obj.etx / RPL_DAG_MC_ETX_DIVISOR,
-	(instance->mc.obj.etx % RPL_DAG_MC_ETX_DIVISOR * 100) / RPL_DAG_MC_ETX_DIVISOR);
+	dag->mc.obj.etx / RPL_DAG_MC_ETX_DIVISOR,
+	(dag->mc.obj.etx % RPL_DAG_MC_ETX_DIVISOR * 100) / RPL_DAG_MC_ETX_DIVISOR);
 
 #elif RPL_DAG_MC == RPL_DAG_MC_ENERGY
 
-  instance->mc.type = RPL_DAG_MC_ENERGY;
-  instance->mc.length = sizeof(instance->mc.obj.energy);
+  dag->mc.type = RPL_DAG_MC_ENERGY;
+  dag->mc.length = sizeof(dag->mc.obj.energy);
 
-  if(dag->rank == ROOT_RANK(instance)) {
+  if(dag->rank == ROOT_RANK(dag)) {
     type = RPL_DAG_MC_ENERGY_TYPE_MAINS;
   } else {
     type = RPL_DAG_MC_ENERGY_TYPE_BATTERY;
   }
 
-  instance->mc.obj.energy.flags = type << RPL_DAG_MC_ENERGY_TYPE;
-  instance->mc.obj.energy.energy_est = path_metric;
+  dag->mc.obj.energy.flags = type << RPL_DAG_MC_ENERGY_TYPE;
+  dag->mc.obj.energy.energy_est = path_metric;
 
 #else
 

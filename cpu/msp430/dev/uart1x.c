@@ -32,8 +32,11 @@
 /*
  * Machine dependent MSP430X UART1 code.
  */
-#include "contiki.h"
+
 #include <stdlib.h>
+#include <io.h>
+#include <signal.h>
+
 #include "sys/energest.h"
 #include "dev/uart1.h"
 #include "dev/watchdog.h"

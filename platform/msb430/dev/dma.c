@@ -36,7 +36,9 @@
  * \author
  * 	Nicolas Tsiftes <nvt@sics.se>
  */
-#include "contiki.h"
+
+#include <io.h>
+#include <signal.h>
 
 #include "contiki-msb430.h"
 #include "dev/cc1020.h"

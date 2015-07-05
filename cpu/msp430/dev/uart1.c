@@ -34,7 +34,11 @@
  */
 
 #include <stdlib.h>
-#include "contiki.h"
+#include <io.h>
+#include <signal.h>
+
+#include <stdio.h>
+
 #include "sys/energest.h"
 #include "dev/uart1.h"
 #include "dev/watchdog.h"
@@ -244,12 +248,7 @@ uart1_init(unsigned long ubr)
 
 /*---------------------------------------------------------------------------*/
 #if !RX_WITH_DMA
-#ifdef __IAR_SYSTEMS_ICC__
-#pragma vector=UART1RX_VECTOR
-__interrupt void
-#else
 interrupt(UART1RX_VECTOR)
-#endif
 uart1_rx_interrupt(void)
 {
   uint8_t c;

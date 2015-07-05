@@ -34,9 +34,7 @@
 #include "net/uip-ds6.h"
 #include "net/uip-udp-packet.h"
 #include "sys/ctimer.h"
-#ifdef WITH_COMPOWER
-#include "powertrace.h"
-#endif
+
 #include <stdio.h>
 #include <string.h>
 
@@ -147,7 +145,6 @@ PROCESS_THREAD(udp_client_process, ev, data)
 {
   static struct etimer periodic;
   static struct ctimer backoff_timer;
-  static int print = 0;
 
   PROCESS_BEGIN();
 
@@ -161,20 +158,12 @@ PROCESS_THREAD(udp_client_process, ev, data)
 
   /* new connection with remote host */
   client_conn = udp_new(NULL, UIP_HTONS(UDP_SERVER_PORT), NULL); 
-  if(client_conn == NULL) {
-    PRINTF("No UDP connection available, exiting the process!\n");
-    PROCESS_EXIT();
-  }
   udp_bind(client_conn, UIP_HTONS(UDP_CLIENT_PORT)); 
 
   PRINTF("Created a connection with the server ");
   PRINT6ADDR(&client_conn->ripaddr);
   PRINTF(" local/remote port %u/%u\n",
 	UIP_HTONS(client_conn->lport), UIP_HTONS(client_conn->rport));
-
-#if WITH_COMPOWER
-  powertrace_sniff(POWERTRACE_ON);
-#endif
 
   etimer_set(&periodic, SEND_INTERVAL);
   while(1) {
@@ -186,16 +175,6 @@ PROCESS_THREAD(udp_client_process, ev, data)
     if(etimer_expired(&periodic)) {
       etimer_reset(&periodic);
       ctimer_set(&backoff_timer, SEND_TIME, send_packet, NULL);
-
-#if WITH_COMPOWER
-      if (print == 0) {
-	powertrace_print("#P");
-      }
-      if (++print == 3) {
-	print = 0;
-      }
-#endif
-
     }
   }
 

@@ -30,13 +30,12 @@
 package se.sics.cooja.util;
 
 import java.io.File;
-import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.URL;
-import java.util.zip.GZIPInputStream;
 
 /**
  * Some utility methods for generating hex dumps.
@@ -140,20 +139,13 @@ public class StringUtils {
     }
   }
 
-  public static String loadFromFile(File file) {
-    if (file == null) {
+  public static String loadFromFile(File scriptFile) {
+    if (scriptFile == null) {
       return null;
     }
-    StringBuilder sb = new StringBuilder();
-    InputStreamReader reader = null;
-    
     try {
-      if (file.getName().endsWith(".gz")) {
-        reader = new InputStreamReader(new GZIPInputStream(new FileInputStream(file)));
-      } else {
-        reader = new InputStreamReader(new FileInputStream(file));
-      }
-
+      FileReader reader = new FileReader(scriptFile);
+      StringBuilder sb = new StringBuilder();
       char[] buf = new char[4096];
       int read;
       while ((read = reader.read(buf)) > 0) {
@@ -163,18 +155,6 @@ public class StringUtils {
       reader.close();
       return sb.toString();
     } catch (IOException e) {
-      e.printStackTrace();
-      
-      if (reader != null) {
-        try {
-          reader.close();
-        } catch (IOException e1) {
-        }
-      }
-      
-      if (sb != null && sb.length() > 0) {
-        return sb.toString();
-      }
       return null;
     }
   }

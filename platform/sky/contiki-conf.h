@@ -34,11 +34,6 @@
 #define CC2420_CONF_AUTOACK              1
 #endif /* CC2420_CONF_AUTOACK */
 
-/* Specify whether the RDC layer should enable
-   per-packet power profiling. */
-#define CONTIKIMAC_CONF_COMPOWER         1
-#define XMAC_CONF_COMPOWER               1
-#define CXMAC_CONF_COMPOWER              1
 
 #if WITH_UIP6
 /* Network setup for IPv6 */
@@ -68,6 +63,10 @@
 #define CXMAC_CONF_ANNOUNCEMENTS         0
 #define XMAC_CONF_ANNOUNCEMENTS          0
 #define CONTIKIMAC_CONF_ANNOUNCEMENTS    0
+
+#define CONTIKIMAC_CONF_COMPOWER         1
+#define XMAC_CONF_COMPOWER               1
+#define CXMAC_CONF_COMPOWER              1
 
 #ifndef COLLECT_NEIGHBOR_CONF_MAX_COLLECT_NEIGHBORS
 #define COLLECT_NEIGHBOR_CONF_MAX_COLLECT_NEIGHBORS     32

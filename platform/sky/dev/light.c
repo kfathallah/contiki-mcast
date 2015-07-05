@@ -32,6 +32,9 @@
  */
 
 #include <stdlib.h>
+
+#include <io.h>
+
 #include "contiki.h"
 #include "dev/light.h"
 

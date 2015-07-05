@@ -42,30 +42,29 @@ import org.apache.log4j.Logger;
 import org.jdom.Element;
 
 import se.sics.cooja.*;
-import se.sics.mrm.ChannelModel.Parameter;
 
 /**
  * This plugin allows a user to reconfigure current radio channel parameters.
  *
  * @author Fredrik Osterlind
  */
-@ClassDescription("MRM Settings")
+@ClassDescription("MRM - Formula Viewer")
 @PluginType(PluginType.SIM_PLUGIN)
 public class FormulaViewer extends se.sics.cooja.VisPlugin {
   private static final long serialVersionUID = 1L;
   private static Logger logger = Logger.getLogger(FormulaViewer.class);
 
-  private Simulation simulation;
-  private MRM radioMedium;
-  private ChannelModel channelModel;
+  private Simulation currentSimulation;
+  private MRM currentRadioMedium;
+  private ChannelModel currentChannelModel;
 
   private static Dimension labelDimension = new Dimension(240, 20);
   private static NumberFormat doubleFormat = NumberFormat.getNumberInstance();
   private static NumberFormat integerFormat = NumberFormat.getIntegerInstance();
 
-  private ArrayList<JFormattedTextField> allIntegerParameters = new ArrayList<JFormattedTextField>();
-  private ArrayList<JFormattedTextField> allDoubleParameters = new ArrayList<JFormattedTextField>();
-  private ArrayList<JCheckBox> allBooleanParameters = new ArrayList<JCheckBox>();
+  private Vector<JFormattedTextField> allIntegerParameters = new Vector<JFormattedTextField>();
+  private Vector<JFormattedTextField> allDoubleParameters = new Vector<JFormattedTextField>();
+  private Vector<JCheckBox> allBooleanParameters = new Vector<JCheckBox>();
 
   private JPanel areaGeneral;
   private JPanel areaTransmitter;
@@ -79,11 +78,11 @@ public class FormulaViewer extends se.sics.cooja.VisPlugin {
    * @param simulationToVisualize Simulation which holds the MRM channel model.
    */
   public FormulaViewer(Simulation simulationToVisualize, GUI gui) {
-    super("MRM Settings", gui);
+    super("MRM - Formula Viewer", gui);
 
-    simulation = simulationToVisualize;
-    radioMedium = (MRM) simulation.getRadioMedium();
-    channelModel = radioMedium.getChannelModel();
+    currentSimulation = simulationToVisualize;
+    currentRadioMedium = (MRM) currentSimulation.getRadioMedium();
+    currentChannelModel = currentRadioMedium.getChannelModel();
 
     // -- Create and add GUI components --
     JPanel allComponents = new JPanel();
@@ -103,91 +102,70 @@ public class FormulaViewer extends se.sics.cooja.VisPlugin {
     areaGeneral = collapsableArea;
 
     addBooleanParameter(
-        Parameter.apply_random,
-        Parameter.getDescription(Parameter.apply_random),
+        "apply_random",
+        currentChannelModel.getParameterDescription("apply_random"),
         collapsableArea,
-        channelModel.getParameterBooleanValue(Parameter.apply_random)
+        currentChannelModel.getParameterBooleanValue("apply_random")
     );
 
     addDoubleParameter(
-        Parameter.snr_threshold,
-        Parameter.getDescription(Parameter.snr_threshold),
+        "snr_threshold",
+        currentChannelModel.getParameterDescription("snr_threshold"),
         collapsableArea,
-        channelModel.getParameterDoubleValue(Parameter.snr_threshold)
+        currentChannelModel.getParameterDoubleValue("snr_threshold")
     );
 
     addDoubleParameter(
-        Parameter.bg_noise_mean,
-        Parameter.getDescription(Parameter.bg_noise_mean),
+        "bg_noise_mean",
+        currentChannelModel.getParameterDescription("bg_noise_mean"),
         collapsableArea,
-        channelModel.getParameterDoubleValue(Parameter.bg_noise_mean)
+        currentChannelModel.getParameterDoubleValue("bg_noise_mean")
     );
 
     addDoubleParameter(
-        Parameter.bg_noise_var,
-        Parameter.getDescription(Parameter.bg_noise_var),
+        "bg_noise_var",
+        currentChannelModel.getParameterDescription("bg_noise_var"),
         collapsableArea,
-        channelModel.getParameterDoubleValue(Parameter.bg_noise_var)
+        currentChannelModel.getParameterDoubleValue("bg_noise_var")
     );
 
     addDoubleParameter(
-        Parameter.system_gain_mean,
-        Parameter.getDescription(Parameter.system_gain_mean),
+        "system_gain_mean",
+        currentChannelModel.getParameterDescription("system_gain_mean"),
         collapsableArea,
-        channelModel.getParameterDoubleValue(Parameter.system_gain_mean)
+        currentChannelModel.getParameterDoubleValue("system_gain_mean")
     );
 
     addDoubleParameter(
-        Parameter.system_gain_var,
-        Parameter.getDescription(Parameter.system_gain_var),
+        "system_gain_var",
+        currentChannelModel.getParameterDescription("system_gain_var"),
         collapsableArea,
-        channelModel.getParameterDoubleValue(Parameter.system_gain_var)
+        currentChannelModel.getParameterDoubleValue("system_gain_var")
     );
 
     addDoubleParameter(
-        Parameter.frequency,
-        Parameter.getDescription(Parameter.frequency),
+        "wavelength",
+        currentChannelModel.getParameterDescription("wavelength"),
         collapsableArea,
-        channelModel.getParameterDoubleValue(Parameter.frequency)
+        currentChannelModel.getParameterDoubleValue("wavelength")
     );
 
-    addBooleanParameter(
-        Parameter.captureEffect,
-        Parameter.getDescription(Parameter.captureEffect),
-        collapsableArea,
-        channelModel.getParameterBooleanValue(Parameter.captureEffect)
-    );
-
-    addDoubleParameter(
-        Parameter.captureEffectPreambleDuration,
-        Parameter.getDescription(Parameter.captureEffectPreambleDuration),
-        collapsableArea,
-        channelModel.getParameterDoubleValue(Parameter.captureEffectPreambleDuration)
-    );
-    
-    addDoubleParameter(
-        Parameter.captureEffectSignalTreshold,
-        Parameter.getDescription(Parameter.captureEffectSignalTreshold),
-        collapsableArea,
-        channelModel.getParameterDoubleValue(Parameter.captureEffectSignalTreshold)
-    );
-    
     // Transmitter parameters
     collapsableArea = createCollapsableArea("Transmitter parameters", allComponents);
     areaTransmitter = collapsableArea;
 
     addDoubleParameter(
-        Parameter.tx_power,
-        Parameter.getDescription(Parameter.tx_power),
+        "tx_power",
+        currentChannelModel.getParameterDescription("tx_power"),
         collapsableArea,
-        channelModel.getParameterDoubleValue(Parameter.tx_power)
+        currentChannelModel.getParameterDoubleValue("tx_power")
     );
 
-    addBooleanParameter(
-        Parameter.tx_with_gain,
-        Parameter.getDescription(Parameter.tx_with_gain),
+    addDoubleParameter(
+        "tx_antenna_gain",
+        currentChannelModel.getParameterDescription("tx_antenna_gain"),
         collapsableArea,
-        channelModel.getParameterBooleanValue(Parameter.tx_with_gain)
+        currentChannelModel.getParameterDoubleValue("tx_antenna_gain")
     );
 
     // Receiver parameters
@@ -195,17 +173,17 @@ public class FormulaViewer extends se.sics.cooja.VisPlugin {
     areaReceiver = collapsableArea;
 
     addDoubleParameter(
-        Parameter.rx_sensitivity,
-        Parameter.getDescription(Parameter.rx_sensitivity),
+        "rx_sensitivity",
+        currentChannelModel.getParameterDescription("rx_sensitivity"),
         collapsableArea,
-        channelModel.getParameterDoubleValue(Parameter.rx_sensitivity)
+        currentChannelModel.getParameterDoubleValue("rx_sensitivity")
     );
 
-    addBooleanParameter(
-        Parameter.rx_with_gain,
-        Parameter.getDescription(Parameter.rx_with_gain),
+    addDoubleParameter(
+        "rx_antenna_gain",
+        currentChannelModel.getParameterDescription("rx_antenna_gain"),
         collapsableArea,
-        channelModel.getParameterBooleanValue(Parameter.rx_with_gain)
+        currentChannelModel.getParameterDoubleValue("rx_antenna_gain")
     );
 
     // Ray Tracer parameters
@@ -213,87 +191,87 @@ public class FormulaViewer extends se.sics.cooja.VisPlugin {
     areaRayTracer = collapsableArea;
 
     addBooleanParameter(
-        Parameter.rt_disallow_direct_path,
-        Parameter.getDescription(Parameter.rt_disallow_direct_path),
+        "rt_disallow_direct_path",
+        currentChannelModel.getParameterDescription("rt_disallow_direct_path"),
         collapsableArea,
-        channelModel.getParameterBooleanValue(Parameter.rt_disallow_direct_path)
+        currentChannelModel.getParameterBooleanValue("rt_disallow_direct_path")
     );
 
     addBooleanParameter(
-        Parameter.rt_ignore_non_direct,
-        Parameter.getDescription(Parameter.rt_ignore_non_direct),
+        "rt_ignore_non_direct",
+        currentChannelModel.getParameterDescription("rt_ignore_non_direct"),
         collapsableArea,
-        channelModel.getParameterBooleanValue(Parameter.rt_ignore_non_direct)
+        currentChannelModel.getParameterBooleanValue("rt_ignore_non_direct")
     );
 
     addBooleanParameter(
-        Parameter.rt_fspl_on_total_length,
-        Parameter.getDescription(Parameter.rt_fspl_on_total_length),
+        "rt_fspl_on_total_length",
+        currentChannelModel.getParameterDescription("rt_fspl_on_total_length"),
         collapsableArea,
-        channelModel.getParameterBooleanValue(Parameter.rt_fspl_on_total_length)
+        currentChannelModel.getParameterBooleanValue("rt_fspl_on_total_length")
     );
 
     addIntegerParameter(
-        Parameter.rt_max_rays,
-        Parameter.getDescription(Parameter.rt_max_rays),
+        "rt_max_rays",
+        currentChannelModel.getParameterDescription("rt_max_rays"),
         collapsableArea,
-        channelModel.getParameterIntegerValue(Parameter.rt_max_rays)
+        currentChannelModel.getParameterIntegerValue("rt_max_rays")
     );
 
     addIntegerParameter(
-        Parameter.rt_max_refractions,
-        Parameter.getDescription(Parameter.rt_max_refractions),
+        "rt_max_refractions",
+        currentChannelModel.getParameterDescription("rt_max_refractions"),
         collapsableArea,
-        channelModel.getParameterIntegerValue(Parameter.rt_max_refractions)
+        currentChannelModel.getParameterIntegerValue("rt_max_refractions")
     );
 
     addIntegerParameter(
-        Parameter.rt_max_reflections,
-        Parameter.getDescription(Parameter.rt_max_reflections),
+        "rt_max_reflections",
+        currentChannelModel.getParameterDescription("rt_max_reflections"),
         collapsableArea,
-        channelModel.getParameterIntegerValue(Parameter.rt_max_reflections)
+        currentChannelModel.getParameterIntegerValue("rt_max_reflections")
     );
 
     addIntegerParameter(
-        Parameter.rt_max_diffractions,
-        Parameter.getDescription(Parameter.rt_max_diffractions),
+        "rt_max_diffractions",
+        currentChannelModel.getParameterDescription("rt_max_diffractions"),
         collapsableArea,
-        channelModel.getParameterIntegerValue(Parameter.rt_max_diffractions)
+        currentChannelModel.getParameterIntegerValue("rt_max_diffractions")
     );
 
 /*    addBooleanParameter(
-        Parameters.rt_use_scattering,
-        Parameter.getDescription(Parameters.rt_use_scattering),
+        "rt_use_scattering",
+        currentChannelModel.getParameterDescription("rt_use_scattering"),
         collapsableArea,
-        currentChannelModel.getParameterBooleanValue(Parameters.rt_use_scattering)
+        currentChannelModel.getParameterBooleanValue("rt_use_scattering")
     );
 */
     addDoubleParameter(
-        Parameter.rt_refrac_coefficient,
-        Parameter.getDescription(Parameter.rt_refrac_coefficient),
+        "rt_refrac_coefficient",
+        currentChannelModel.getParameterDescription("rt_refrac_coefficient"),
         collapsableArea,
-        channelModel.getParameterDoubleValue(Parameter.rt_refrac_coefficient)
+        currentChannelModel.getParameterDoubleValue("rt_refrac_coefficient")
     );
 
     addDoubleParameter(
-        Parameter.rt_reflec_coefficient,
-        Parameter.getDescription(Parameter.rt_reflec_coefficient),
+        "rt_reflec_coefficient",
+        currentChannelModel.getParameterDescription("rt_reflec_coefficient"),
         collapsableArea,
-        channelModel.getParameterDoubleValue(Parameter.rt_reflec_coefficient)
+        currentChannelModel.getParameterDoubleValue("rt_reflec_coefficient")
     );
 
     addDoubleParameter(
-        Parameter.rt_diffr_coefficient,
-        Parameter.getDescription(Parameter.rt_diffr_coefficient),
+        "rt_diffr_coefficient",
+        currentChannelModel.getParameterDescription("rt_diffr_coefficient"),
         collapsableArea,
-        channelModel.getParameterDoubleValue(Parameter.rt_diffr_coefficient)
+        currentChannelModel.getParameterDoubleValue("rt_diffr_coefficient")
     );
 
 /*    addDoubleParameter(
-        Parameters.rt_scatt_coefficient,
-        Parameter.getDescription(Parameters.rt_scatt_coefficient),
+        "rt_scatt_coefficient",
+        currentChannelModel.getParameterDescription("rt_scatt_coefficient"),
         collapsableArea,
-        currentChannelModel.getParameterDoubleValue(Parameters.rt_scatt_coefficient)
+        currentChannelModel.getParameterDoubleValue("rt_scatt_coefficient")
     );
 */
     // Shadowing parameters
@@ -301,14 +279,16 @@ public class FormulaViewer extends se.sics.cooja.VisPlugin {
     areaShadowing = collapsableArea;
 
     addDoubleParameter(
-        Parameter.obstacle_attenuation,
-        Parameter.getDescription(Parameter.obstacle_attenuation),
+        "obstacle_attenuation",
+        currentChannelModel.getParameterDescription("obstacle_attenuation"),
         collapsableArea,
-        channelModel.getParameterDoubleValue(Parameter.obstacle_attenuation)
+        currentChannelModel.getParameterDoubleValue("obstacle_attenuation")
     );
 
+
+
     // Add channel model observer responsible to keep all GUI components synched
-    channelModel.addSettingsObserver(channelModelSettingsObserver);
+    currentChannelModel.addSettingsObserver(channelModelSettingsObserver);
 
     // Set initial size etc.
     pack();
@@ -332,7 +312,6 @@ public class FormulaViewer extends se.sics.cooja.VisPlugin {
   private JPanel createCollapsableArea(String title, Container contentPane) {
     // Create panels
     JPanel holdingPanel = new JPanel() {
-      private static final long serialVersionUID = -7925426641856424500L;
       public Dimension getMaximumSize() {
         return new Dimension(super.getMaximumSize().width, getPreferredSize().height);
       }
@@ -340,7 +319,6 @@ public class FormulaViewer extends se.sics.cooja.VisPlugin {
     holdingPanel.setLayout(new BoxLayout(holdingPanel, BoxLayout.Y_AXIS));
 
     final JPanel collapsableArea = new JPanel() {
-      private static final long serialVersionUID = -1261182973911973773L;
       public Dimension getMaximumSize() {
         return new Dimension(super.getMaximumSize().width, getPreferredSize().height);
       }
@@ -349,7 +327,6 @@ public class FormulaViewer extends se.sics.cooja.VisPlugin {
     collapsableArea.setVisible(false);
 
     JPanel titlePanel = new JPanel(new BorderLayout()) {
-      private static final long serialVersionUID = -9121775806029887815L;
       public Dimension getMaximumSize() {
         return new Dimension(super.getMaximumSize().width, getPreferredSize().height);
       }
@@ -392,7 +369,7 @@ public class FormulaViewer extends se.sics.cooja.VisPlugin {
    * @param initialValue Initial value
    * @return Text field in created panel
    */
-  private JFormattedTextField addDoubleParameter(Parameter id, String description, Container contentPane, double initialValue) {
+  private JFormattedTextField addDoubleParameter(String id, String description, Container contentPane, double initialValue) {
     JPanel panel = new JPanel();
     JLabel label;
     JFormattedTextField textField;
@@ -409,34 +386,19 @@ public class FormulaViewer extends se.sics.cooja.VisPlugin {
     textField.putClientProperty("id", id);
     textField.addPropertyChangeListener("value", new PropertyChangeListener() {
       public void propertyChange(PropertyChangeEvent e) {
-        JFormattedTextField textField = (JFormattedTextField) e.getSource();
-        Parameter id = (Parameter) textField.getClientProperty("id");
-        Double val = ((Number) e.getNewValue()).doubleValue();
-        channelModel.setParameterValue(id, val);
-        if (!Parameter.getDefaultValue(id).equals(val)) {
-          textField.setBackground(Color.LIGHT_GRAY);
-          textField.setToolTipText("Default value: " + Parameter.getDefaultValue(id));
-        } else {
-          textField.setBackground(null);
-          textField.setToolTipText(null);
-        }
+        Object sourceObject = e.getSource();
+        Double newValue = ((Number) e.getNewValue()).doubleValue();
+        String id = (String) ((JFormattedTextField) sourceObject).getClientProperty("id");
+        currentChannelModel.setParameterValue(id, newValue);
       }
     });
-    if (!Parameter.getDefaultValue(id).equals(initialValue)) {
-      textField.setBackground(Color.LIGHT_GRAY);
-      textField.setToolTipText("Default value: " + Parameter.getDefaultValue(id));
-    } else {
-      textField.setBackground(null);
-      textField.setToolTipText(null);
-    }
-    
     allDoubleParameters.add(textField);
 
     contentPane.add(panel);
 
     return textField;
   }
-  
+
   /**
    * Creates and adds a panel with a label and a
    * text field which accepts integers.
@@ -447,7 +409,7 @@ public class FormulaViewer extends se.sics.cooja.VisPlugin {
    * @param initialValue Initial value
    * @return Text field in created panel
    */
-  private JFormattedTextField addIntegerParameter(Parameter id, String description, Container contentPane, int initialValue) {
+  private JFormattedTextField addIntegerParameter(String id, String description, Container contentPane, int initialValue) {
     JPanel panel = new JPanel();
     JLabel label;
     JFormattedTextField textField;
@@ -464,26 +426,12 @@ public class FormulaViewer extends se.sics.cooja.VisPlugin {
     textField.putClientProperty("id", id);
     textField.addPropertyChangeListener("value", new PropertyChangeListener() {
       public void propertyChange(PropertyChangeEvent e) {
-        JFormattedTextField textField = (JFormattedTextField) e.getSource();
-        Parameter id = (Parameter) textField.getClientProperty("id");
-        Integer val = ((Number) e.getNewValue()).intValue();
-        channelModel.setParameterValue(id, val);
-        if (!Parameter.getDefaultValue(id).equals(val)) {
-          textField.setBackground(Color.LIGHT_GRAY);
-          textField.setToolTipText("Default value: " + Parameter.getDefaultValue(id));
-        } else {
-          textField.setBackground(null);
-          textField.setToolTipText(null);
-        }
+        Object sourceObject = e.getSource();
+        Integer newValue = ((Number) e.getNewValue()).intValue();
+        String id = (String) ((JFormattedTextField) sourceObject).getClientProperty("id");
+        currentChannelModel.setParameterValue(id, newValue);
       }
     });
-    if (!Parameter.getDefaultValue(id).equals(initialValue)) {
-      textField.setBackground(Color.LIGHT_GRAY);
-      textField.setToolTipText("Default value: " + Parameter.getDefaultValue(id));
-    } else {
-      textField.setBackground(null);
-      textField.setToolTipText(null);
-    }
 
     allIntegerParameters.add(textField);
 
@@ -502,7 +450,7 @@ public class FormulaViewer extends se.sics.cooja.VisPlugin {
    * @param initialValue Initial value
    * @return Checkbox in created panel
    */
-  private JCheckBox addBooleanParameter(Parameter id, String description, Container contentPane, boolean initialValue) {
+  private JCheckBox addBooleanParameter(String id, String description, Container contentPane, boolean initialValue) {
     JPanel panel = new JPanel();
     JLabel label;
     JCheckBox checkBox;
@@ -518,28 +466,42 @@ public class FormulaViewer extends se.sics.cooja.VisPlugin {
     checkBox.putClientProperty("id", id);
     checkBox.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent e) {
-        JCheckBox checkBox = (JCheckBox) e.getSource();
-        Parameter id = (Parameter) checkBox.getClientProperty("id");
-        Object val = new Boolean(checkBox.isSelected());
-        channelModel.setParameterValue(id, val);
-        if (!Parameter.getDefaultValue(id).equals(val)) {
-          checkBox.setText("<");
-        } else {
-          checkBox.setText("");
-        }
+        JCheckBox source = (JCheckBox) e.getSource();
+        currentChannelModel.setParameterValue(
+            (String) source.getClientProperty("id"),
+            new Boolean(source.isSelected())
+        );
       }
     });
-    if (!Parameter.getDefaultValue(id).equals(initialValue)) {
-      checkBox.setText("<");
-    } else {
-      checkBox.setText("");
-    }
-    
+
     allBooleanParameters.add(checkBox);
 
     contentPane.add(panel);
 
     return checkBox;
+  }
+
+  /**
+   * Creates and adds a panel with a description label.
+   *
+   * @param description Description of new parameter
+   * @param contentPane Where to add created panel
+   * @return Created label
+   */
+  private JLabel addLabelParameter(String description, Container contentPane) {
+    JPanel panel = new JPanel();
+    JLabel label;
+
+    panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
+    panel.setAlignmentY(Component.TOP_ALIGNMENT);
+    panel.add(Box.createHorizontalStrut(10));
+    panel.add(label = new JLabel(description));
+    label.setPreferredSize(labelDimension);
+    panel.add(Box.createHorizontalGlue());
+
+    contentPane.add(panel);
+
+    return label;
   }
 
   /**
@@ -551,22 +513,22 @@ public class FormulaViewer extends se.sics.cooja.VisPlugin {
       // Update all integers
       for (int i=0; i < allIntegerParameters.size(); i++) {
         JFormattedTextField textField = allIntegerParameters.get(i);
-        Parameter id = (Parameter) textField.getClientProperty("id");
-        textField.setValue(channelModel.getParameterValue(id));
+        String id = (String) textField.getClientProperty("id");
+        textField.setValue(currentChannelModel.getParameterValue(id));
       }
 
       // Update all doubles
       for (int i=0; i < allDoubleParameters.size(); i++) {
         JFormattedTextField textField = allDoubleParameters.get(i);
-        Parameter id = (Parameter) textField.getClientProperty("id");
-        textField.setValue(channelModel.getParameterValue(id));
+        String id = (String) textField.getClientProperty("id");
+        textField.setValue(currentChannelModel.getParameterValue(id));
       }
 
       // Update all booleans
       for (int i=0; i < allBooleanParameters.size(); i++) {
         JCheckBox checkBox = allBooleanParameters.get(i);
-        Parameter id = (Parameter) checkBox.getClientProperty("id");
-        checkBox.setSelected(channelModel.getParameterBooleanValue(id));
+        String id = (String) checkBox.getClientProperty("id");
+        checkBox.setSelected(currentChannelModel.getParameterBooleanValue(id));
       }
 
       repaint();
@@ -574,7 +536,12 @@ public class FormulaViewer extends se.sics.cooja.VisPlugin {
   };
 
   public void closePlugin() {
-    channelModel.deleteSettingsObserver(channelModelSettingsObserver);
+    // Remove the channel model observer
+    if (currentChannelModel != null && channelModelSettingsObserver != null) {
+      currentChannelModel.deleteSettingsObserver(channelModelSettingsObserver);
+    } else {
+      logger.fatal("Can't remove channel model observer: " + channelModelSettingsObserver);
+    }
   }
 
   /**
@@ -584,7 +551,7 @@ public class FormulaViewer extends se.sics.cooja.VisPlugin {
    * @return XML element collection
    */
   public Collection<Element> getConfigXML() {
-    ArrayList<Element> config = new ArrayList<Element>();
+    Vector<Element> config = new Vector<Element>();
     Element element;
 
     element = new Element("show_general");

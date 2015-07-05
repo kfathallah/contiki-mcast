@@ -59,7 +59,6 @@ ifdef UIP_CONF_IPV6
   NET   += $(UIP) uip-icmp6.c uip-nd6.c uip-packetqueue.c \
           sicslowpan.c neighbor-attr.c neighbor-info.c uip-ds6.c
   include $(CONTIKI)/core/net/rpl/Makefile.rpl
-  include $(CONTIKI)/core/net/uip-mcast6/Makefile.uip-mcast6
 else # UIP_CONF_IPV6
   UIP   = uip.c uiplib.c resolv.c tcpip.c psock.c hc.c uip-split.c uip-fw.c \
           uip-fw-drv.c uip_arp.c tcpdump.c uip-neighbor.c uip-udp-packet.c \
@@ -79,7 +78,7 @@ endif
 CONTIKI_SOURCEFILES += $(CONTIKIFILES)
 
 CONTIKIDIRS += ${addprefix $(CONTIKI)/core/,dev lib net net/mac net/rime \
-                 net/rpl net/uip-mcast6 sys cfs ctk lib/ctk loader . }
+                 net/rpl sys cfs ctk lib/ctk loader . }
 
 oname = ${patsubst %.c,%.o,${patsubst %.S,%.o,$(1)}}
 

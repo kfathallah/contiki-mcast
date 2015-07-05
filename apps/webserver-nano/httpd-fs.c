@@ -74,12 +74,11 @@ httpd_fs_open(const char *name, struct httpd_fs_file *file)
     httpd_memcpy(&fram,f,sizeof(fram));
 
     /*Compare name passed in RAM with name in whatever flash the file is in */
-	/*makefsdata no longer adds an extra zero byte at the end of the file */
+	/*makefsdata adds an extra zero byte at the end of the file */
     if(httpd_fs_strcmp((char *)name, fram.name) == 0) {
       if (file) {
         file->data = fram.data;
- //     file->len  = fram.len-1;
-		file->len  = fram.len;
+        file->len  = fram.len-1;
 #if WEBSERVER_CONF_FILESTATS==2         //increment count in linked list field if it is in RAM
         f->count++;
       }

@@ -48,7 +48,6 @@
 
 static void reset(rpl_dag_t *);
 static rpl_parent_t *best_parent(rpl_parent_t *, rpl_parent_t *);
-static rpl_dag_t *best_dag(rpl_dag_t *, rpl_dag_t *);
 static rpl_rank_t calculate_rank(rpl_parent_t *, rpl_rank_t);
 static void update_metric_container(rpl_dag_t *);
 
@@ -56,7 +55,6 @@ rpl_of_t rpl_of0 = {
   reset,
   NULL,
   best_parent,
-  best_dag,
   calculate_rank,
   update_metric_container,
   0
@@ -94,32 +92,6 @@ calculate_rank(rpl_parent_t *p, rpl_rank_t base_rank)
 
 }
 
-static rpl_dag_t *
-best_dag(rpl_dag_t *d1, rpl_dag_t *d2)
-{
-  if(d1->grounded) {
-    if (!d2->grounded) {
-      return d1;
-    }
-  } else if(d2->grounded) {
-    return d2;
-  }
-
-  if(d1->preference < d2->preference) {
-    return d2;
-  } else {
-    if(d1->preference > d2->preference) {
-      return d1;
-    }
-  }
-
-  if(d2->rank < d1->rank) {
-    return d2;
-  } else {
-    return d1;
-  }
-}
-
 static rpl_parent_t *
 best_parent(rpl_parent_t *p1, rpl_parent_t *p2)
 {
@@ -155,7 +127,7 @@ best_parent(rpl_parent_t *p1, rpl_parent_t *p2)
 }
 
 static void
-update_metric_container(rpl_instance_t *instance)
+update_metric_container(rpl_dag_t *dag)
 {
-  instance->mc.type = RPL_DAG_MC_NONE;
+  dag->mc.type = RPL_DAG_MC_NONE;
 }

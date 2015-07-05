@@ -66,7 +66,6 @@ import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.JTextPane;
-import javax.swing.KeyStroke;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.table.AbstractTableModel;
@@ -280,7 +279,8 @@ public class RadioLogger extends VisPlugin {
     dataTable.addKeyListener(new KeyAdapter() {
       public void keyPressed(KeyEvent e) {
         if (e.getKeyCode() == KeyEvent.VK_SPACE) {
-          showInAllAction.actionPerformed(null);
+          timeLineAction.actionPerformed(null);
+          logListenerAction.actionPerformed(null);
         } else if (e.getKeyCode() == KeyEvent.VK_F && 
         		(e.getModifiers() & KeyEvent.CTRL_MASK) != 0) {
         	searchField.setVisible(true);
@@ -323,9 +323,7 @@ public class RadioLogger extends VisPlugin {
     popupMenu.add(new JMenuItem(saveAction));
     popupMenu.addSeparator();
 
-    JMenu focusMenu = new JMenu("Show in");
-    focusMenu.add(new JMenuItem(showInAllAction));
-    focusMenu.addSeparator();
+    JMenu focusMenu = new JMenu("Focus (Space)");
     focusMenu.add(new JMenuItem(timeLineAction));
     focusMenu.add(new JMenuItem(logListenerAction));
     popupMenu.add(focusMenu);
@@ -830,7 +828,7 @@ public class RadioLogger extends VisPlugin {
     }
   };
 
-  private Action timeLineAction = new AbstractAction("Timeline") {
+  private Action timeLineAction = new AbstractAction("in Timeline") {
     private static final long serialVersionUID = -4035633464748224192L;
     public void actionPerformed(ActionEvent e) {
       int selectedRow = dataTable.getSelectedRow();
@@ -850,7 +848,7 @@ public class RadioLogger extends VisPlugin {
     }
   };
 
-  private Action logListenerAction = new AbstractAction("Log Listener") {
+  private Action logListenerAction = new AbstractAction("in Log Listener") {
     private static final long serialVersionUID = 1985006491187878651L;
     public void actionPerformed(ActionEvent e) {
       int selectedRow = dataTable.getSelectedRow();
@@ -867,17 +865,6 @@ public class RadioLogger extends VisPlugin {
       	LogListener plugin = (LogListener) p;
         plugin.trySelectTime(time);
       }
-    }
-  };
-
-  private Action showInAllAction = new AbstractAction("All") {
-    private static final long serialVersionUID = -3888292108886138128L;
-    {
-       putValue(ACCELERATOR_KEY, KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0, true));
-    }
-    public void actionPerformed(ActionEvent e) {
-      timeLineAction.actionPerformed(null);
-      logListenerAction.actionPerformed(null);
     }
   };
 

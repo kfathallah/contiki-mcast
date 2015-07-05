@@ -280,8 +280,6 @@ void oui_to_eui64(rimeaddr_t *eui64, uint32_t oui, uint64_t ext) {
 	eui64->u8[7] =  ext        & 0xff;
 }
 
-unsigned short node_id = 0;
-
 void
 set_rimeaddr(rimeaddr_t *addr) 
 {
@@ -334,7 +332,6 @@ set_rimeaddr(rimeaddr_t *addr)
 		PRINTF("loading rime address from flash.\n\r");
 	}
 
-	node_id = (addr->u8[6] << 8 | addr->u8[7]);
 	rimeaddr_set_node_addr(addr);
 }
 
